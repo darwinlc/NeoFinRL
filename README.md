@@ -12,7 +12,8 @@ A suite of universal near real-market environments for DRL in quant finance.
 
 **Design Principles**
 
-● Plug-and-play (PnP): Modularity○Handle different markets (say T0 vs. T+1)
+● Plug-and-play (PnP): Modularity
+○  Handle different markets (say T0 vs. T+1)
 
 ● Avoid hard-coded parameters
 
