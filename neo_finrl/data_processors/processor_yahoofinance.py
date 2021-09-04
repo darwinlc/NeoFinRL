@@ -204,7 +204,7 @@ class YahooFinanceProcessor():
         # use returns to calculate turbulence
         df_price_pivot = df_price_pivot.pct_change()
 
-        unique_date = df.date.unique()
+        unique_date = df.time.unique()
         # start after a year
         start = time_period
         turbulence_index = [0] * start
@@ -263,6 +263,20 @@ class YahooFinanceProcessor():
         df = df.sort_values(["time", "tic"]).reset_index(drop=True)
         return df
     
+    def df_to_array_fix(self, df, tech_indicator_list, if_vix):
+        """transform final df to numpy arrays"""
+        price_array = df.pivot('time', 'tic', 'adjcp').values
+        tech_array = np.hstack([df.pivot('time', 'tic', i) for i in tech_indicator_list])
+        if if_vix:
+            risk_array = df.pivot('time', 'tic', 'vix').values
+        else:
+            risk_array = df.pivot('time', 'tic', 'turbulence').values
+        
+        assert price_array.shape[0] == tech_array.shape[0]
+        assert tech_array.shape[0] == risk_array.shape[0]
+        print('Successfully transformed into array')
+        return price_array, tech_array, risk_array
+    
     def df_to_array(self, df, tech_indicator_list, if_vix):
         """transform final df to numpy arrays"""
         unique_ticker = df.tic.unique()
@@ -279,6 +293,7 @@ class YahooFinanceProcessor():
                     risk_array = df[df.tic==tic]['turbulence'].values 
                 if_first_time = False
             else:
+                print (price_array.shape, df[df.tic==tic][['adjcp']].values.shape)
                 price_array = np.hstack([price_array, df[df.tic==tic][['adjcp']].values])
                 tech_array = np.hstack([tech_array, df[df.tic==tic][tech_indicator_list].values])
         assert price_array.shape[0] == tech_array.shape[0]
