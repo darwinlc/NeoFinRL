@@ -275,7 +275,7 @@ class YahooFinanceProcessor():
         assert price_array.shape[0] == tech_array.shape[0]
         assert tech_array.shape[0] == risk_array.shape[0]
         print('Successfully transformed into array')
-        return price_array, tech_array, risk_array
+        return price_array, tech_array, risk_array[:, 0]
     
     def df_to_array(self, df, tech_indicator_list, if_vix):
         """transform final df to numpy arrays"""

@@ -87,6 +87,7 @@ class StockTradingEnv(gym.Env):
             min_action = int(self.max_stock * self.min_stock_rate)  # stock_cd
             for index in np.where(actions < -min_action)[0]:  # sell_index:
                 if price[index] > 0:  # Sell only if current asset is > 0
+                    print (self.stocks[index], -actions[index])
                     sell_num_shares = min(self.stocks[index], -actions[index])
                     self.stocks[index] -= sell_num_shares
                     self.amount += price[index] * sell_num_shares * (1 - self.sell_cost_pct)
@@ -119,6 +120,7 @@ class StockTradingEnv(gym.Env):
     def get_state(self, price):
         amount = np.array(max(self.amount, 1e4) * (2 ** -12), dtype=np.float32)
         scale = np.array(2 ** -6, dtype=np.float32)
+        
         return np.hstack((amount,
                           self.risk_ary[self.day],
                           self.risk_bool[self.day],
