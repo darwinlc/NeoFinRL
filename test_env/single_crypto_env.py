@@ -45,7 +45,7 @@ class CryptoTradingEnv(gym.Env):
         self.amount = None
         self.stocks = None
         self.total_asset = None
-        self.gamma_reward = None
+        #self.gamma_reward = None
         self.initial_total_asset = None
 
         # environment information
@@ -67,8 +67,8 @@ class CryptoTradingEnv(gym.Env):
     def reset(self):
         # random start point
         if self.if_train:
-            self.stocks = self.initial_stocks
-            self.amount = self.initial_capital * rd.uniform(0.95, 1.05)
+            self.stocks = self.initial_stocks.copy()
+            self.amount = self.initial_capital
             self.day = rd.randint(0, self.max_datalength - self.max_step)
             self.run_index = 0
             price = self.price_ary[self.day]
@@ -80,13 +80,17 @@ class CryptoTradingEnv(gym.Env):
             price = self.price_ary[self.day]
 
         # price[:, 1] --> closing price
-        #self.total_asset = self.amount + (self.stocks * price[1]).sum()
-        self.total_asset = 0.0
+        self.total_asset = self.amount + (self.stocks * price[1]).sum()
+        #print ('self.stocks:', self.stocks)
+        #self.total_asset = self.stocks[0]
         self.initial_total_asset = self.total_asset
         self.episode_return = 0.0
         self.gamma_reward = 0.0
         init_state = self.get_state(price)  # state
-        #print(init_state)
+        
+        if not self.if_train:
+            print('initial stock:', self.stocks, 'inital amount: ', self.amount)
+            print('initial asset: ', self.initial_total_asset)
         return init_state
 
     def step(self, actions):
@@ -112,44 +116,53 @@ class CryptoTradingEnv(gym.Env):
             if actions_v > 0:
                 buy_num_shares = tradable_size(self.amount * actions_v/order_px)
                 self.stocks[0] += buy_num_shares
-                #print (f'BUY: {buy_num_shares}')
+                
+                if not self.if_train:
+                    print (f'[Day {self.day + self.run_index}] BUY: {buy_num_shares}')
                 self.amount -= order_px * buy_num_shares * (1 + self.buy_cost_pct)
             
             if actions_v < 0:
                 sell_num_shares = tradable_size(self.stocks[0] * (-1.0) * actions_v)
                 self.stocks[0] -= sell_num_shares
-                #print (f'SELL: {sell_num_shares}')
+                
+                if not self.if_train:
+                    print (f'[Day {self.day + self.run_index}] SELL: {sell_num_shares}')
                 self.amount += order_px * sell_num_shares * (1 - self.sell_cost_pct)
                 
         state = self.get_state(price)
         # in order to maximize the value
-        #total_asset = self.amount + (self.stocks * price[1]).sum()
+        total_asset = self.amount + (self.stocks * price[1]).sum()
+        reward = (total_asset - self.total_asset) * self.reward_scaling
+        self.total_asset = total_asset
+        
+        # in order to maximize the holding
+        #total_asset = self.stocks[0]
         #reward = (total_asset - self.total_asset) * self.reward_scaling
         #self.total_asset = total_asset
         
-        # in order to maximize the holding
-        total_asset = self.stocks[0]
-        reward = total_asset
-        
         self.gamma_reward = self.gamma_reward * self.gamma + reward
+        
         done = self.run_index == self.max_step
         if done:
-            #reward = self.gamma_reward
-            #self.episode_return = total_asset / self.initial_total_asset
-            self.episode_return = total_asset
+            reward = self.gamma_reward
+            self.episode_return = total_asset / self.initial_total_asset
             print ('Episode Return: ', self.episode_return)
-            self.reset()
+            #self.reset()
 
         return state, reward, done, dict()
 
     def get_state(self, price):
-        amount = np.array(max(self.amount, 1e4) * (2 ** -12), dtype=np.float32)
-        scale = np.array(2 ** -6, dtype=np.float32)
+        amount = np.array(self.amount * (2 ** -12), dtype=np.float32)
+        
+        scale_factor = (-1) * int(np.log(self.price_ary[self.day, 0])/np.log(2))
+        px_scale = np.array(2 ** scale_factor, dtype=np.float32)
+        
+        stock_scale = (2** -5)
         
         return np.hstack((amount,
-                          price * scale,
-                          self.stocks * scale,
-                          self.tech_ary[self.day],
+                          price * px_scale,
+                          self.stocks * stock_scale,
+                          self.tech_ary[self.day + self.run_index],
                           ))  # state.astype(np.float32)
     
     @staticmethod
