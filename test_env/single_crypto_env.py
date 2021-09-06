@@ -60,8 +60,6 @@ class CryptoTradingEnv(gym.Env):
         self.max_datalength = n - 1
         self.if_train = if_train
         self.if_discrete = False
-        self.target_return = 10.0
-        self.episode_return = 0.0
         
         self.observation_space = gym.spaces.Box(low=-3000, high=3000, shape=(self.state_dim,), dtype=np.float32)
         self.action_space = gym.spaces.Box(low=-1, high=1, shape=(self.action_dim,), dtype=np.float32)
@@ -84,8 +82,11 @@ class CryptoTradingEnv(gym.Env):
         # price[:, 1] --> closing price
         self.total_asset = self.amount + (self.stocks * price[1]).sum()
         self.initial_total_asset = self.total_asset
+        self.episode_return = 0.0
         self.gamma_reward = 0.0
-        return self.get_state(price)  # state
+        init_state = self.get_state(price)  # state
+        #print(init_state)
+        return init_state
 
     def step(self, actions):
         def tradable_size(x):
@@ -94,7 +95,13 @@ class CryptoTradingEnv(gym.Env):
         # order price -> last day (open + close)/2
         order_px = (self.price_ary[self.day + self.run_index, 0] + \
                     self.price_ary[self.day + self.run_index, 1])/2.0
-        actions_v = actions[0] * self.max_stock
+        
+        # actions -> percentage of stock or cash
+        actions_v = actions[0]
+        
+        if actions_v == np.nan:
+            actions_v = 0.0
+        #print (actions_v)
         
         self.run_index += 1
         price = self.price_ary[self.day + self.run_index]
@@ -102,13 +109,15 @@ class CryptoTradingEnv(gym.Env):
         # within day low-high
         if (order_px > price[2]) and (order_px < price[3]):
             if actions_v > 0:
-                buy_num_shares = tradable_size(min(self.amount/order_px, actions_v))
+                buy_num_shares = tradable_size(self.amount * actions_v/order_px)
                 self.stocks[0] += buy_num_shares
+                #print (f'BUY: {buy_num_shares}')
                 self.amount -= order_px * buy_num_shares * (1 + self.buy_cost_pct)
             
             if actions_v < 0:
-                sell_num_shares = tradable_size(min(self.stocks[0], (-1.0) * actions_v))
+                sell_num_shares = tradable_size(self.stocks[0] * (-1.0) * actions_v)
                 self.stocks[0] -= sell_num_shares
+                #print (f'SELL: {sell_num_shares}')
                 self.amount += order_px * sell_num_shares * (1 - self.sell_cost_pct)
                 
         state = self.get_state(price)
@@ -124,10 +133,11 @@ class CryptoTradingEnv(gym.Env):
         self.gamma_reward = self.gamma_reward * self.gamma + reward
         done = self.run_index == self.max_step
         if done:
-            reward = self.gamma_reward
+            #reward = self.gamma_reward
             #self.episode_return = total_asset / self.initial_total_asset
             self.episode_return = total_asset
-            print (self.episode_return)
+            print ('Episode Return: ', self.episode_return)
+            self.reset()
 
         return state, reward, done, dict()
 
