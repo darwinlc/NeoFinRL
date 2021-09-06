@@ -4,7 +4,7 @@ import pandas as pd
 import yfinance as yf
 import numpy as np
 from stockstats import StockDataFrame as Sdf
-import trading_calendars as tc
+#import trading_calendars as tc
 import pytz
 
 class YahooFinanceProcessor():
@@ -88,7 +88,8 @@ class YahooFinanceProcessor():
         tic_list = np.unique(df.tic.values)
     
         #get complete time index
-        trading_days = self.get_trading_days(start=self.start, end=self.end)
+        #trading_days = self.get_trading_days(start=self.start, end=self.end)
+        trading_days = sorted(df.time.unique())
         if time_interval == '1D':
             times = trading_days
         elif time_interval == '1Min':
