@@ -80,7 +80,8 @@ class CryptoTradingEnv(gym.Env):
             price = self.price_ary[self.day]
 
         # price[:, 1] --> closing price
-        self.total_asset = self.amount + (self.stocks * price[1]).sum()
+        #self.total_asset = self.amount + (self.stocks * price[1]).sum()
+        self.total_asset = 0.0
         self.initial_total_asset = self.total_asset
         self.episode_return = 0.0
         self.gamma_reward = 0.0
