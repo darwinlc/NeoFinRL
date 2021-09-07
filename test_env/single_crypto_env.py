@@ -17,6 +17,8 @@ class CryptoTradingEnv(gym.Env):
         tech_ary = config['tech_array']
         #risk_ary = config['risk_array']
         if_train = config['if_train']
+        # reward based on value or coin count
+        if_value = config['if_value']
         
         # time duration
         n = price_ary.shape[0]
@@ -59,6 +61,7 @@ class CryptoTradingEnv(gym.Env):
         self.max_step = max_step
         self.max_datalength = n - 1
         self.if_train = if_train
+        self.if_value = if_value
         self.if_discrete = False
         
         self.observation_space = gym.spaces.Box(low=-3000, high=3000, shape=(self.state_dim,), dtype=np.float32)
@@ -79,10 +82,13 @@ class CryptoTradingEnv(gym.Env):
             self.run_index = 0
             price = self.price_ary[self.day]
 
-        # price[:, 1] --> closing price
-        self.total_asset = self.amount + (self.stocks * price[1]).sum()
-        #print ('self.stocks:', self.stocks)
-        #self.total_asset = self.stocks[0]
+        if self.if_value:
+            # price[:, 1] --> closing price
+            self.total_asset = self.amount + (self.stocks * price[1]).sum()
+        else:
+            #print ('self.stocks:', self.stocks)
+            self.total_asset = self.stocks[0]
+        
         self.initial_total_asset = self.total_asset
         self.episode_return = 0.0
         self.gamma_reward = 0.0
@@ -114,7 +120,7 @@ class CryptoTradingEnv(gym.Env):
         # within day low-high
         if (order_px > price[2]) and (order_px < price[3]):
             if actions_v > 0:
-                buy_num_shares = tradable_size(self.amount * actions_v/order_px)
+                buy_num_shares = tradable_size((self.amount * actions_v/order_px)/(1 + self.buy_cost_pct))
                 self.stocks[0] += buy_num_shares
                 
                 if not self.if_train:
@@ -123,22 +129,24 @@ class CryptoTradingEnv(gym.Env):
             
             if actions_v < 0:
                 sell_num_shares = tradable_size(self.stocks[0] * (-1.0) * actions_v)
-                self.stocks[0] -= sell_num_shares
+                self.stocks[0] = max(0, self.stocks[0] - sell_num_shares)
                 
                 if not self.if_train:
                     print (f'[Day {self.day + self.run_index}] SELL: {sell_num_shares}')
                 self.amount += order_px * sell_num_shares * (1 - self.sell_cost_pct)
                 
         state = self.get_state(price)
-        # in order to maximize the value
-        total_asset = self.amount + (self.stocks * price[1]).sum()
-        reward = (total_asset - self.total_asset) * self.reward_scaling
-        self.total_asset = total_asset
         
-        # in order to maximize the holding
-        #total_asset = self.stocks[0]
-        #reward = (total_asset - self.total_asset) * self.reward_scaling
-        #self.total_asset = total_asset
+        if self.if_value:
+            # in order to maximize the value
+            total_asset = self.amount + (self.stocks * price[1]).sum()
+            reward = (total_asset - self.total_asset) * self.reward_scaling
+            self.total_asset = total_asset
+        else:
+            # in order to maximize the holding
+            total_asset = self.stocks[0]
+            reward = (total_asset - self.total_asset) * self.reward_scaling
+            self.total_asset = total_asset
         
         self.gamma_reward = self.gamma_reward * self.gamma + reward
         
@@ -146,7 +154,9 @@ class CryptoTradingEnv(gym.Env):
         if done:
             reward = self.gamma_reward
             self.episode_return = total_asset / self.initial_total_asset
-            print ('Episode Return: ', self.episode_return)
+            
+            if not self.if_train:
+                print ('Episode Return: ', self.episode_return)
             #self.reset()
 
         return state, reward, done, dict()
