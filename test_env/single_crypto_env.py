@@ -174,7 +174,8 @@ class CryptoTradingEnv(gym.Env):
             # flatten by row
             price = new_price.flatten()
             
-        scale_factor = (-1) * int(np.log(self.price_ary[self.day, 0])/np.log(2))
+        scale_base_day = max(self.day, self.day + self.run_index - self.lookback_n + 1)
+        scale_factor = (-1) * int(np.log(self.price_ary[scale_base_day, 0])/np.log(2))
         px_scale = np.array(2 ** scale_factor, dtype=np.float32)
         
         stock_scale = (2** -5)
