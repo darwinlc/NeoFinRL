@@ -19,6 +19,8 @@ class CryptoTradingEnv(gym.Env):
         if_train = config['if_train']
         # reward based on value or coin count
         if_value = config['if_value']
+        # lookback px history; default 1
+        self.lookback_n = config.get('lookback_n', 1)
         
         # time duration
         n = price_ary.shape[0]
@@ -53,7 +55,7 @@ class CryptoTradingEnv(gym.Env):
         # environment information
         self.env_name = 'CryptoEnv'
         # amount + price_dim + stock_dim + tech_dim
-        self.state_dim = 1 + 4 + 1 + self.tech_ary.shape[1]
+        self.state_dim = 1 + 4 * self.lookback_n + 1 + self.tech_ary.shape[1]
         # amount + (turbulence, turbulence_bool) + (price, stock) * stock_dim + tech_dim
         self.action_dim = stock_dim
         
@@ -164,6 +166,14 @@ class CryptoTradingEnv(gym.Env):
     def get_state(self, price):
         amount = np.array(self.amount * (2 ** -12), dtype=np.float32)
         
+        if self.lookback_n > 1:
+            px_index_st = max(0, self.run_index - self.lookback_n + 1)
+            px_index_ed = self.run_index + 1
+            new_price = np.zeros((self.lookback_n, 4), dtype = float)
+            new_price[(-1 * (px_index_ed - px_index_st)):] = self.price_ary[(self.day + px_index_st):(self.day + px_index_ed)]
+            # flatten by row
+            price = new_price.flatten()
+            
         scale_factor = (-1) * int(np.log(self.price_ary[self.day, 0])/np.log(2))
         px_scale = np.array(2 ** scale_factor, dtype=np.float32)
         
