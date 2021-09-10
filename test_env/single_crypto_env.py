@@ -16,7 +16,8 @@ class CryptoTradingEnv(gym.Env):
         # as many as provided
         tech_ary = config['tech_array']
         #risk_ary = config['risk_array']
-        if_train = config['if_train']
+        if_sequence = config['if_sequence']
+        if_randomInit = config['if_randomV']
         # reward based on value or coin count
         if_value = config['if_value']
         # lookback px history; default 1
@@ -62,7 +63,8 @@ class CryptoTradingEnv(gym.Env):
         # max game duration
         self.max_step = max_step
         self.max_datalength = n - 1
-        self.if_train = if_train
+        self.if_sequence = if_sequence
+        self.if_randomInit = if_randomInit
         self.if_value = if_value
         self.if_discrete = False
         
@@ -71,9 +73,16 @@ class CryptoTradingEnv(gym.Env):
         
     def reset(self):
         # random start point
-        if self.if_train:
+        if not self.if_sequence:
             self.stocks = self.initial_stocks.copy()
-            self.amount = self.initial_capital
+            
+            if self.if_randomInit:
+                # randomly start holdings
+                self.amount = self.initial_capital * (rd.rand()*0.6 + 0.2)
+                self.stocks = self.stocks + (self.initial_capital - self.amount)/np.mean(self.price_ary[:, 2])
+            else:
+                self.amount = self.initial_capital
+            
             self.day = rd.randint(0, self.max_datalength - self.max_step)
             self.run_index = 0
             price = self.price_ary[self.day]
@@ -96,9 +105,10 @@ class CryptoTradingEnv(gym.Env):
         self.gamma_reward = 0.0
         init_state = self.get_state(price)  # state
         
-        if not self.if_train:
+        if self.if_sequence:
             print('initial stock:', self.stocks, 'inital amount: ', self.amount)
             print('initial asset: ', self.initial_total_asset)
+        
         return init_state
 
     def step(self, actions):
@@ -125,7 +135,7 @@ class CryptoTradingEnv(gym.Env):
                 buy_num_shares = tradable_size((self.amount * actions_v/order_px)/(1 + self.buy_cost_pct))
                 self.stocks[0] += buy_num_shares
                 
-                if not self.if_train:
+                if self.if_sequence:
                     print (f'[Day {self.day + self.run_index}] BUY: {buy_num_shares}')
                 self.amount -= order_px * buy_num_shares * (1 + self.buy_cost_pct)
             
@@ -133,7 +143,7 @@ class CryptoTradingEnv(gym.Env):
                 sell_num_shares = tradable_size(self.stocks[0] * (-1.0) * actions_v)
                 self.stocks[0] = max(0, self.stocks[0] - sell_num_shares)
                 
-                if not self.if_train:
+                if self.if_sequence:
                     print (f'[Day {self.day + self.run_index}] SELL: {sell_num_shares}')
                 self.amount += order_px * sell_num_shares * (1 - self.sell_cost_pct)
                 
@@ -157,7 +167,7 @@ class CryptoTradingEnv(gym.Env):
             reward = self.gamma_reward
             self.episode_return = total_asset / self.initial_total_asset
             
-            if not self.if_train:
+            if self.if_sequence:
                 print ('Episode Return: ', self.episode_return)
             #self.reset()
 
