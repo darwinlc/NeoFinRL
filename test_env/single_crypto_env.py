@@ -9,7 +9,8 @@ class CryptoTradingEnv(gym.Env):
                  gamma=0.99, min_stock_rate=0.0001,
                  max_stock=1, initial_capital=1e6, buy_cost_pct=1e-3, 
                  sell_cost_pct=1e-3,reward_scaling=2 ** -11,  initial_stocks=None,
-                 max_step = 30
+                 max_step = 30,
+                 start_idx = 0,
                  ):
         # price_ary: open, close, low, high
         price_ary = config['price_array']
@@ -22,6 +23,7 @@ class CryptoTradingEnv(gym.Env):
         if_value = config['if_value']
         # lookback px history; default 1
         self.lookback_n = config.get('lookback_n', 1)
+        self.run_start_idx = start_idx
         
         # time duration
         n = price_ary.shape[0]
@@ -89,7 +91,7 @@ class CryptoTradingEnv(gym.Env):
         else:
             self.stocks = self.initial_stocks.astype(np.float32)
             self.amount = self.initial_capital
-            self.day = 0
+            self.day = self.run_start_idx
             self.run_index = 0
             price = self.price_ary[self.day]
 
