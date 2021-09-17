@@ -83,11 +83,12 @@ class AlpacaProcessor():
             tmp_df = tmp_df.astype(float)
             tmp_df['tic'] = tic
             new_df = new_df.append(tmp_df)
+            print('Data clean for ', str(tic), ' is finished.')
         
         new_df = new_df.reset_index()
         new_df = new_df.rename(columns={'index':'time'})
         
-        print('Data clean finished!')
+        print('Data clean all finished!')
         
         return new_df
       
@@ -278,4 +279,13 @@ class AlpacaProcessor():
                                          limit=1).df['VIXY']
         latest_turb = turb_df['close'].values
         return latest_price, latest_tech, latest_turb
-        
+    
+    def get_portfolio_history(self, start, end):
+        trading_days = self.get_trading_days(start, end)
+        df = pd.DataFrame()
+        for day in trading_days:
+            df = df.append(self.api.get_portfolio_history(date_start = day,timeframe='5Min').df.iloc[:79])
+        equities = df.equity.values
+        cumu_returns = equities/equities[0]
+        cumu_returns = cumu_returns[~np.isnan(cumu_returns)]
+        return cumu_returns
