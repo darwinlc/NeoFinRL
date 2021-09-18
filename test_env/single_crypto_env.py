@@ -122,17 +122,20 @@ class CryptoTradingEnv(gym.Env):
         def tradable_size(x):
             return (x / self.min_stock_rate).astype(int) * self.min_stock_rate
         
-        # order price -> last day (open + close)/2
-        order_px = (self.price_ary[self.day + self.run_index, 0] + \
-                    self.price_ary[self.day + self.run_index, 1])/2.0
-        
         # actions -> percentage of stock or cash
-        # add clip at 0.8
-        actions_v = actions[0] * 0.8
+        # add clip at 0.9
+        actions_v = actions[0] * 0.9
         
         if actions_v == np.nan:
             actions_v = 0.0
         #print (actions_v)
+        
+        # version 0: order price -> last day (open + close)/2; order can be filled quickly
+        order_px = (self.price_ary[self.day + self.run_index, 0] + \
+                    self.price_ary[self.day + self.run_index, 1])/2.0
+        
+        # version 1: order px using last closing px
+        #order_px = self.price_ary[self.day + self.run_index, 1]
         
         self.run_index += 1
         price = self.price_ary[self.day + self.run_index]
@@ -210,10 +213,10 @@ class CryptoTradingEnv(gym.Env):
         cash_ratio = np.array(self.amount/(self.amount + (self.stocks * price[1]).sum() + 1e-10), dtype=np.float32)
         
         if self.lookback_n > 1:
-            px_index_st = max(0, self.run_index - self.lookback_n + 1)
-            px_index_ed = self.run_index + 1
+            px_index_st = max(0, self.day + self.run_index - self.lookback_n + 1)
+            px_index_ed = self.day + self.run_index + 1
             new_price = np.zeros((self.lookback_n, 4), dtype = float)
-            new_price[(-1 * (px_index_ed - px_index_st)):] = self.price_ary[(self.day + px_index_st):(self.day + px_index_ed)]
+            new_price[(-1 * (px_index_ed - px_index_st)):] = self.price_ary[px_index_st:px_index_ed]
             # flatten by row
             price = new_price.flatten()
             
