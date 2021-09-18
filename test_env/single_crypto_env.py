@@ -141,24 +141,29 @@ class CryptoTradingEnv(gym.Env):
         price = self.price_ary[self.day + self.run_index]
         
         # within day low-high
-        if (order_px > price[2]) and (order_px < price[3]):
-            if actions_v > 0:
-                buy_num_shares = tradable_size((self.amount * actions_v/order_px)/(1 + self.buy_cost_pct))
+        if actions_v > 0:
+            buy_num_shares = tradable_size((self.amount * actions_v/order_px)/(1 + self.buy_cost_pct))
+                
+            if self.if_sequence and buy_num_shares != 0.0:
+                print (f'[Day {self.day + self.run_index}] BUY: {buy_num_shares}')
+                
+            if order_px > price[2]:
+                actual_order_px = min(order_px, price[3])
                 self.stocks[0] += buy_num_shares
-                
-                if self.if_sequence and buy_num_shares != 0.0:
-                    print (f'[Day {self.day + self.run_index}] BUY: {buy_num_shares}')
-                self.amount -= order_px * buy_num_shares * (1 + self.buy_cost_pct)
+                self.amount -= actual_order_px * buy_num_shares * (1 + self.buy_cost_pct)
             
-            if actions_v < 0:
-                sell_num_shares = tradable_size(self.stocks[0] * (-1.0) * actions_v)
-                # no short 
-                sell_num_shares = min(sell_num_shares, self.stocks[0])
-                self.stocks[0] = self.stocks[0] - sell_num_shares
+        if actions_v < 0:
+            sell_num_shares = tradable_size(self.stocks[0] * (-1.0) * actions_v)
+            # no short 
+            sell_num_shares = min(sell_num_shares, self.stocks[0])
+            
+            if self.if_sequence and sell_num_shares != 0.0:
+                print (f'[Day {self.day + self.run_index}] SELL: {sell_num_shares}')
                 
-                if self.if_sequence and sell_num_shares != 0.0:
-                    print (f'[Day {self.day + self.run_index}] SELL: {sell_num_shares}')
-                self.amount += order_px * sell_num_shares * (1 - self.sell_cost_pct)
+            if order_px < price[3]:
+                actual_order_px = max(order_px, price[2])
+                self.stocks[0] = self.stocks[0] - sell_num_shares
+                self.amount += actual_order_px * sell_num_shares * (1 - self.sell_cost_pct)
                 
         state = self.get_state(price)
         
@@ -220,9 +225,12 @@ class CryptoTradingEnv(gym.Env):
             # flatten by row
             price = new_price.flatten()
             
-        # TO scale_base_day might have some bug, to be evaluated
-        scale_base_day = max(self.day, self.day + self.run_index - self.lookback_n + 1)
-        scale_factor = (-1) * int(np.log(self.price_ary[scale_base_day, 0])/np.log(2))
+        # Version 0: scale_base_day might have some bug, to be evaluated
+        #scale_base_day = max(self.day, self.day + self.run_index - self.lookback_n + 1)
+        #scale_factor = (-1) * int(np.log(self.price_ary[scale_base_day, 0])/np.log(2))
+        
+        # Version 1: 
+        scale_factor = (-1) * int(np.log(price[-1])/np.log(2))
         px_scale = np.array(2 ** scale_factor, dtype=np.float32)
         
         return np.hstack((cash_ratio,
