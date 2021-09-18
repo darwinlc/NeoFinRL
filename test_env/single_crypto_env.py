@@ -220,6 +220,7 @@ class CryptoTradingEnv(gym.Env):
             # flatten by row
             price = new_price.flatten()
             
+        # TO scale_base_day might have some bug, to be evaluated
         scale_base_day = max(self.day, self.day + self.run_index - self.lookback_n + 1)
         scale_factor = (-1) * int(np.log(self.price_ary[scale_base_day, 0])/np.log(2))
         px_scale = np.array(2 ** scale_factor, dtype=np.float32)
