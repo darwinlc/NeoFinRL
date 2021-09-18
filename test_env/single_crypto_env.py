@@ -57,8 +57,13 @@ class CryptoTradingEnv(gym.Env):
 
         # environment information
         self.env_name = 'CryptoEnv'
-        # amount + price_dim + stock_dim + tech_dim
-        self.state_dim = 1 + 4 * self.lookback_n + 1 + self.tech_ary.shape[1]
+        
+        # version 0: amount + price_dim + stock_dim + tech_dim
+        #self.state_dim = 1 + 4 * self.lookback_n + 1 + self.tech_ary.shape[1]
+        
+        # version 1: cash/(coin_value + cash) + price_dim + tech_dim
+        self.state_dim = 1 + 4 * self.lookback_n + self.tech_ary.shape[1]
+        
         # amount + (turbulence, turbulence_bool) + (price, stock) * stock_dim + tech_dim
         self.action_dim = stock_dim
         
@@ -122,7 +127,8 @@ class CryptoTradingEnv(gym.Env):
                     self.price_ary[self.day + self.run_index, 1])/2.0
         
         # actions -> percentage of stock or cash
-        actions_v = actions[0]
+        # add clip at 0.8
+        actions_v = actions[0] * 0.8
         
         if actions_v == np.nan:
             actions_v = 0.0
@@ -137,15 +143,17 @@ class CryptoTradingEnv(gym.Env):
                 buy_num_shares = tradable_size((self.amount * actions_v/order_px)/(1 + self.buy_cost_pct))
                 self.stocks[0] += buy_num_shares
                 
-                if self.if_sequence:
+                if self.if_sequence and buy_num_shares != 0.0:
                     print (f'[Day {self.day + self.run_index}] BUY: {buy_num_shares}')
                 self.amount -= order_px * buy_num_shares * (1 + self.buy_cost_pct)
             
             if actions_v < 0:
                 sell_num_shares = tradable_size(self.stocks[0] * (-1.0) * actions_v)
-                self.stocks[0] = max(0, self.stocks[0] - sell_num_shares)
+                # no short 
+                sell_num_shares = min(sell_num_shares, self.stocks[0])
+                self.stocks[0] = self.stocks[0] - sell_num_shares
                 
-                if self.if_sequence:
+                if self.if_sequence and sell_num_shares != 0.0:
                     print (f'[Day {self.day + self.run_index}] SELL: {sell_num_shares}')
                 self.amount += order_px * sell_num_shares * (1 - self.sell_cost_pct)
                 
@@ -175,7 +183,7 @@ class CryptoTradingEnv(gym.Env):
 
         return state, reward, done, dict()
 
-    def get_state(self, price):
+    def get_state_v0(self, price):
         amount = np.array(self.amount * (2 ** -12), dtype=np.float32)
         
         if self.lookback_n > 1:
@@ -195,6 +203,26 @@ class CryptoTradingEnv(gym.Env):
         return np.hstack((amount,
                           price * px_scale,
                           self.stocks * stock_scale,
+                          self.tech_ary[self.day + self.run_index],
+                          ))  # state.astype(np.float32)
+    
+    def get_state(self, price):
+        cash_ratio = np.array(self.amount/(self.amount + (self.stocks * price[1]).sum() + 1e-10), dtype=np.float32)
+        
+        if self.lookback_n > 1:
+            px_index_st = max(0, self.run_index - self.lookback_n + 1)
+            px_index_ed = self.run_index + 1
+            new_price = np.zeros((self.lookback_n, 4), dtype = float)
+            new_price[(-1 * (px_index_ed - px_index_st)):] = self.price_ary[(self.day + px_index_st):(self.day + px_index_ed)]
+            # flatten by row
+            price = new_price.flatten()
+            
+        scale_base_day = max(self.day, self.day + self.run_index - self.lookback_n + 1)
+        scale_factor = (-1) * int(np.log(self.price_ary[scale_base_day, 0])/np.log(2))
+        px_scale = np.array(2 ** scale_factor, dtype=np.float32)
+        
+        return np.hstack((cash_ratio,
+                          price * px_scale,
                           self.tech_ary[self.day + self.run_index],
                           ))  # state.astype(np.float32)
     
