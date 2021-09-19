@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Sequence, TextIO, Tuple, Union
 import numpy as np
 import pandas
 import torch as th
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -45,7 +45,8 @@ class Figure(object):
     :param close: if true, close the figure after logging it
     """
 
-    def __init__(self, figure: plt.figure, close: bool):
+    #def __init__(self, figure: plt.figure, close: bool):
+    def __init__(self, figure, close:bool):
         self.figure = figure
         self.close = close
 
