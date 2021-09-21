@@ -190,8 +190,11 @@ def modelRun(start_idx, px_df, input_amount, input_stocks, last_model):
     print ('Action value: ', actions_v)
         
     if actions_v > 0:
-        buy_num_shares = tradable_size(test_env, (test_env.amount * actions_v/order_px)/(1 + test_env.buy_cost_pct))
-        print (f'Buy {buy_num_shares} at price {order_px}')
+        if test_env.amount * actions_v > test_env.buy_min_value:
+            buy_num_shares = tradable_size(test_env, (test_env.amount * actions_v/order_px)/(1 + test_env.buy_cost_pct))
+            print (f'Buy {buy_num_shares} at price {order_px}')
+        else:
+            print ('No buy action today')
             
     if actions_v < 0:
         sell_num_shares = tradable_size(test_env, test_env.stocks[0] * (-1.0) * actions_v)

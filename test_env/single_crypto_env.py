@@ -7,7 +7,7 @@ class CryptoTradingEnv(gym.Env):
 
     def __init__(self, config, 
                  gamma=0.99, min_stock_rate=0.0001,
-                 max_stock=1, initial_capital=1e6, buy_cost_pct=1e-3, 
+                 buy_min_value=10.0, initial_capital=1e6, buy_cost_pct=1e-3, 
                  sell_cost_pct=1e-3,reward_scaling=2 ** -11,  initial_stocks=None,
                  max_step = 30,
                  start_idx = 0,
@@ -38,7 +38,7 @@ class CryptoTradingEnv(gym.Env):
         # single crypto
         stock_dim = 1
         self.gamma = gamma
-        self.max_stock = max_stock
+        self.buy_min_value = buy_min_value
         self.min_stock_rate = min_stock_rate
         self.buy_cost_pct = buy_cost_pct
         self.sell_cost_pct = sell_cost_pct
@@ -142,15 +142,16 @@ class CryptoTradingEnv(gym.Env):
         
         # within day low-high
         if actions_v > 0:
-            buy_num_shares = tradable_size((self.amount * actions_v/order_px)/(1 + self.buy_cost_pct))
-                
-            if self.if_sequence and buy_num_shares != 0.0:
-                print (f'[Day {self.day + self.run_index}] BUY: {buy_num_shares}')
-                
-            if order_px > price[2]:
-                actual_order_px = min(order_px, price[3])
-                self.stocks[0] += buy_num_shares
-                self.amount -= actual_order_px * buy_num_shares * (1 + self.buy_cost_pct)
+            if self.amount * actions_v > self.buy_min_value:
+                buy_num_shares = tradable_size((self.amount * actions_v/order_px)/(1 + self.buy_cost_pct))
+
+                if self.if_sequence and buy_num_shares != 0.0:
+                    print (f'[Day {self.day + self.run_index}] BUY: {buy_num_shares}')
+
+                if order_px > price[2]:
+                    actual_order_px = min(order_px, price[3])
+                    self.stocks[0] += buy_num_shares
+                    self.amount -= actual_order_px * buy_num_shares * (1 + self.buy_cost_pct)
             
         if actions_v < 0:
             sell_num_shares = tradable_size(self.stocks[0] * (-1.0) * actions_v)
