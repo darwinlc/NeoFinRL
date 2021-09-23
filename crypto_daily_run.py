@@ -66,14 +66,14 @@ print (f'Cash Balance: {cash_balance}; Coin Balance: {coin_balance}; Model Fiel:
 
 
 reward_on_value = True
-lookback_n = 3
+lookback_n = 2
 
 config_max_step = 15
 
 if reward_on_value:
-    reward_scaling = 2 ** -10
-else:
     reward_scaling = 2 ** -5
+else:
+    reward_scaling = 2 ** -3
 
 
 # ### Query last 40 days price
@@ -190,11 +190,8 @@ def modelRun(start_idx, px_df, input_amount, input_stocks, last_model):
     print ('Action value: ', actions_v)
         
     if actions_v > 0:
-        if test_env.amount * actions_v > test_env.buy_min_value:
-            buy_num_shares = tradable_size(test_env, (test_env.amount * actions_v/order_px)/(1 + test_env.buy_cost_pct))
-            print (f'Buy {buy_num_shares} at price {order_px}')
-        else:
-            print ('No buy action today')
+        buy_num_shares = tradable_size(test_env, (test_env.amount * actions_v/order_px)/(1 + test_env.buy_cost_pct))
+        print (f'Buy {buy_num_shares} at price {order_px}')
             
     if actions_v < 0:
         sell_num_shares = tradable_size(test_env, test_env.stocks[0] * (-1.0) * actions_v)
@@ -203,6 +200,7 @@ def modelRun(start_idx, px_df, input_amount, input_stocks, last_model):
         print (f'Sell {sell_num_shares} at price {order_px}')
         
     print ("\n")
+    print ("[!!Warning!!] Order may not be able to placed if it is lower the mininal trade amount!!")
     print ("[!!Warning!!] check current MKT price for better deal!!")
     
     return -1

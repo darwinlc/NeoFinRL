@@ -7,7 +7,7 @@ class CryptoTradingEnv(gym.Env):
 
     def __init__(self, config, 
                  gamma=0.99, min_stock_rate=0.0001,
-                 buy_min_value=10.0, initial_capital=1e6, buy_cost_pct=1e-3, 
+                 buy_min_value=10.0, sell_min_value = 10.0, initial_capital=1e6, buy_cost_pct=1e-3, 
                  sell_cost_pct=1e-3,reward_scaling=2 ** -11,  initial_stocks=None,
                  max_step = 30,
                  start_idx = 0,
@@ -39,6 +39,7 @@ class CryptoTradingEnv(gym.Env):
         stock_dim = 1
         self.gamma = gamma
         self.buy_min_value = buy_min_value
+        self.sell_min_value = sell_min_value
         self.min_stock_rate = min_stock_rate
         self.buy_cost_pct = buy_cost_pct
         self.sell_cost_pct = sell_cost_pct
@@ -158,13 +159,14 @@ class CryptoTradingEnv(gym.Env):
             # no short 
             sell_num_shares = min(sell_num_shares, self.stocks[0])
             
-            if self.if_sequence and sell_num_shares != 0.0:
-                print (f'[Day {self.day + self.run_index}] SELL: {sell_num_shares}')
-                
-            if order_px < price[3]:
-                actual_order_px = max(order_px, price[2])
-                self.stocks[0] = self.stocks[0] - sell_num_shares
-                self.amount += actual_order_px * sell_num_shares * (1 - self.sell_cost_pct)
+            if (order_px * sell_num_shares) > self.sell_min_value:
+                if self.if_sequence and sell_num_shares != 0.0:
+                    print (f'[Day {self.day + self.run_index}] SELL: {sell_num_shares}')
+
+                if order_px < price[3]:
+                    actual_order_px = max(order_px, price[2])
+                    self.stocks[0] = self.stocks[0] - sell_num_shares
+                    self.amount += actual_order_px * sell_num_shares * (1 - self.sell_cost_pct)
                 
         state = self.get_state(price)
         
