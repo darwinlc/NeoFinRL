@@ -7,6 +7,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+.idea/
 .Python
 build/
 develop-eggs/
@@ -100,7 +101,7 @@ celerybeat.pid
 
 # SageMath parsed files
 *.sage.py
-
+data/
 # Environments
 .env
 .venv
@@ -129,3 +130,18 @@ dmypy.json
 .pyre/
 test_new.py
 debug_test.py
+testing.py
+crypto_test.py
+crypto_data_test.py
+neo_finrl/env_crypto_trading/env_multiple_crypto_0.py
+.DS_Store
+ricequant_test.py
+future_trading_wt_test.py
+train_new.py
+execution_optimizing_test.py
+test_ppo
+cache
+price_array.npy
+
+# vscode
+/.vscode
